@@ -9,64 +9,98 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     
     <style>
-        /* Set full-screen height */
         #map {
-            height: 100vh;
-            width: 500%;
+            height: 500px;
+            width: 100%;
+        }
+        #search-container {
+            text-align: center;
+            margin: 10px;
+        }
+        input {
+            padding: 5px;
+            width: 250px;
+        }
+        button {
+            padding: 5px 10px;
+            margin-left: 5px;
+        }
+        #loading {
+            display: none;
+            font-size: 14px;
+            color: blue;
+            margin-top: 5px;
         }
     </style>
 </head>
-<<div id="search-container">
-    <input type="text" id="address" placeholder="Enter an address">
-    <button onclick="searchLocation()">Search</button>
-</div>
->
+<body>
 
-    <!-- Map Container -->
+    <div id="search-container">
+        <input type="text" id="address" placeholder="Enter an address">
+        <button onclick="searchLocation()">Search</button>
+        <div id="loading">🔄 Searching...</div>
+    </div>
+
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    
-    <<script>
-    function searchLocation() {
-        var address = document.getElementById("address").value;
-        var url = `https://nominatim.openstreetmap.org/search?format=json&q=${address}`;
 
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.length > 0) {
-                    var lat = data[0].lat;
-                    var lon = data[0].lon;
-
-                    map.setView([lat, lon], 12);
-
-                    if (marker) map.removeLayer(marker);
-
-                    marker = L.marker([lat, lon]).addTo(map)
-                        .bindPopup(data[0].display_name)
-                        .openPopup();
-                } else {
-                    alert("Location not found!");
-                }
-            })
-            .catch(error => console.log("Error:", error));
-    }
-<script>
->
-        // Initialize the map and set its view to a chosen geographical coordinates and zoom level
+    <script>
         var map = L.map('map').setView([51.505, -0.09], 13);
-
-        // Add OpenStreetMap tiles
+        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Add a marker
-        L.marker([51.505, -0.09]).addTo(map)
-            .bindPopup("Hello! This is a marker.")
-            .openPopup();
+        var marker = L.marker([51.505, -0.09]).addTo(map).bindPopup("Hello! This is a marker.").openPopup();
+
+        function searchLocation() {
+            var addressInput = document.getElementById("address");
+            var address = addressInput.value.trim();
+            var loadingIndicator = document.getElementById("loading");
+
+            if (!address) {
+                alert("Please enter an address.");
+                return;
+            }
+
+            loadingIndicator.style.display = "block"; // Show loading indicator
+
+            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    loadingIndicator.style.display = "none"; // Hide loading indicator
+
+                    if (data.length > 0) {
+                        var lat = parseFloat(data[0].lat);
+                        var lon = parseFloat(data[0].lon);
+
+                        map.flyTo([lat, lon], 14); // Smooth transition to new location
+
+                        if (marker) map.removeLayer(marker);
+
+                        marker = L.marker([lat, lon]).addTo(map)
+                            .bindPopup(data[0].display_name)
+                            .openPopup();
+                    } else {
+                        alert("Location not found!");
+                    }
+                })
+                .catch(error => {
+                    loadingIndicator.style.display = "none";
+                    console.error("Error:", error);
+                });
+        }
+
+        // Trigger search when "Enter" key is pressed
+        document.getElementById("address").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                searchLocation();
+            }
+        });
     </script>
 
 </body>
