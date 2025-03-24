@@ -11,39 +11,51 @@
     <style>
         /* Set full-screen height */
         #map {
-            height: 500px;  /* Ensures map is visible */
+            height: 100vh;
             width: 100%;
-        }
-        #search-container {
-            text-align: center;
-            margin: 10px;
-        }
-        input {
-            padding: 5px;
-            width: 250px;
-        }
-        button {
-            padding: 5px 10px;
-            margin-left: 5px;
         }
     </style>
 </head>
-<body>
-
-    <!-- Search Bar for Address Input -->
-    <div id="search-container">
-        <input type="text" id="address" placeholder="Enter an address">
-        <button onclick="searchLocation()">Search</button>
-    </div>
+<<div id="search-container">
+    <input type="text" id="address" placeholder="Enter an address">
+    <button onclick="searchLocation()">Search</button>
+</div>
+>
 
     <!-- Map Container -->
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <<script>
+    function searchLocation() {
+        var address = document.getElementById("address").value;
+        var url = `https://nominatim.openstreetmap.org/search?format=json&q=${address}`;
 
-    <script>
-        // Initialize the map and set its view
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    var lat = data[0].lat;
+                    var lon = data[0].lon;
+
+                    map.setView([lat, lon], 12);
+
+                    if (marker) map.removeLayer(marker);
+
+                    marker = L.marker([lat, lon]).addTo(map)
+                        .bindPopup(data[0].display_name)
+                        .openPopup();
+                } else {
+                    alert("Location not found!");
+                }
+            })
+            .catch(error => console.log("Error:", error));
+    }
+</script>
+>
+        // Initialize the map and set its view to a chosen geographical coordinates and zoom level
         var map = L.map('map').setView([51.505, -0.09], 13);
 
         // Add OpenStreetMap tiles
@@ -52,38 +64,9 @@
         }).addTo(map);
 
         // Add a marker
-        var marker = L.marker([51.505, -0.09]).addTo(map)
+        L.marker([51.505, -0.09]).addTo(map)
             .bindPopup("Hello! This is a marker.")
             .openPopup();
-
-        // Function to search for an address and move the map
-        function searchLocation() {
-            var address = document.getElementById("address").value;
-            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${address}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.length > 0) {
-                        var lat = parseFloat(data[0].lat);  // Convert to float
-                        var lon = parseFloat(data[0].lon);  // Convert to float
-
-                        // Move map to the searched location
-                        map.setView([lat, lon], 12);
-
-                        // Remove old marker if exists
-                        if (marker) map.removeLayer(marker);
-
-                        // Add marker to new location
-                        marker = L.marker([lat, lon]).addTo(map)
-                            .bindPopup(data[0].display_name)
-                            .openPopup();
-                    } else {
-                        alert("Location not found!");
-                    }
-                })
-                .catch(error => console.log("Error:", error));
-        }
     </script>
 
 </body>
