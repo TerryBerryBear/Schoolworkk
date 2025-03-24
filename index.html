@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenStreetMap with Leaflet</title>
+    <title>Route Finder with OpenStreetMap</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -17,13 +17,13 @@
             text-align: center;
             margin: 10px;
         }
-        input {
+        input, select {
             padding: 5px;
-            width: 250px;
+            width: 200px;
+            margin: 5px;
         }
         button {
             padding: 5px 10px;
-            margin-left: 5px;
         }
         #loading {
             display: none;
@@ -34,74 +34,131 @@
     </style>
 </head>
 <body>
-
     <div id="search-container">
-        <input type="text" id="address" placeholder="Enter an address">
-        <button onclick="searchLocation()">Search</button>
+        <input type="text" id="start" placeholder="Enter start location">
+        <input type="text" id="destination" placeholder="Enter destination">
+        
+        <!-- Color Selection Dropdown -->
+        <select id="routeColor">
+            <option value="blue">Blue</option>
+            <option value="red">Red</option>
+            <option value="green">Green</option>
+            <option value="purple">Purple</option>
+            <option value="orange">Orange</option>
+            <option value="black">Black</option>
+            <option value="pink">Pink</option>
+        </select>
+
+        <button onclick="findRoute()">Find Route</button>
         <div id="loading">🔄 Searching...</div>
     </div>
-
     <div id="map"></div>
-
+    
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
+    
     <script>
-        var map = L.map('map').setView([51.505, -0.09], 13);
-        
+        var map = L.map('map');
+
+        // Try to set map to user's location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var userLat = position.coords.latitude;
+                    var userLon = position.coords.longitude;
+                    map.setView([userLat, userLon], 13);
+                },
+                function() {
+                    // Fallback zoomed-out view
+                    map.setView([51.505, -0.09], 5);
+                }
+            );
+        } else {
+            map.setView([51.505, -0.09], 5);
+        }
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        var marker = L.marker([51.505, -0.09]).addTo(map).bindPopup("Hello! This is a marker.").openPopup();
+        var startMarker, endMarker, routeLayer;
 
-        function searchLocation() {
-            var addressInput = document.getElementById("address");
-            var address = addressInput.value.trim();
+        function findRoute() {
+            var startAddress = document.getElementById("start").value.trim();
+            var endAddress = document.getElementById("destination").value.trim();
+            var routeColor = document.getElementById("routeColor").value;
             var loadingIndicator = document.getElementById("loading");
 
-            if (!address) {
-                alert("Please enter an address.");
+            if (!startAddress || !endAddress) {
+                alert("Please enter both start and destination addresses.");
                 return;
             }
 
-            loadingIndicator.style.display = "block"; // Show loading indicator
+            loadingIndicator.style.display = "block";
 
-            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+            Promise.all([
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startAddress)}`).then(res => res.json()),
+                fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endAddress)}`).then(res => res.json())
+            ])
+            .then(([startData, endData]) => {
+                loadingIndicator.style.display = "none";
 
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    loadingIndicator.style.display = "none"; // Hide loading indicator
+                if (startData.length > 0 && endData.length > 0) {
+                    var startLat = parseFloat(startData[0].lat);
+                    var startLon = parseFloat(startData[0].lon);
+                    var endLat = parseFloat(endData[0].lat);
+                    var endLon = parseFloat(endData[0].lon);
 
-                    if (data.length > 0) {
-                        var lat = parseFloat(data[0].lat);
-                        var lon = parseFloat(data[0].lon);
+                    // Clear old markers and routes
+                    if (startMarker) map.removeLayer(startMarker);
+                    if (endMarker) map.removeLayer(endMarker);
+                    if (routeLayer) map.removeLayer(routeLayer);
+                    routeLayer = null;
 
-                        map.flyTo([lat, lon], 14); // Smooth transition to new location
+                    startMarker = L.marker([startLat, startLon]).addTo(map)
+                        .bindPopup("Start: " + startData[0].display_name)
+                        .openPopup();
 
-                        if (marker) map.removeLayer(marker);
+                    endMarker = L.marker([endLat, endLon]).addTo(map)
+                        .bindPopup("Destination: " + endData[0].display_name)
+                        .openPopup();
 
-                        marker = L.marker([lat, lon]).addTo(map)
-                            .bindPopup(data[0].display_name)
-                            .openPopup();
-                    } else {
-                        alert("Location not found!");
-                    }
-                })
-                .catch(error => {
-                    loadingIndicator.style.display = "none";
-                    console.error("Error:", error);
-                });
+                    map.fitBounds([
+                        [startLat, startLon],
+                        [endLat, endLon]
+                    ]);
+
+                    var routeUrl = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+                    return fetch(routeUrl);
+                } else {
+                    alert("One or both locations not found!");
+                    throw new Error("Invalid locations");
+                }
+            })
+            .then(response => response.json())
+            .then(routeData => {
+                if (routeData.routes && routeData.routes.length > 0) {
+                    var routeCoordinates = routeData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                    if (routeLayer) map.removeLayer(routeLayer);
+                    routeLayer = L.polyline(routeCoordinates, { color: routeColor, weight: 4 }).addTo(map);
+                } else {
+                    alert("No route found between locations.");
+                }
+            })
+            .catch(error => {
+                loadingIndicator.style.display = "none";
+                alert("An error occurred while fetching the route. Please try again.");
+                console.error("Error:", error);
+            });
         }
 
-        // Trigger search when "Enter" key is pressed
-        document.getElementById("address").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                searchLocation();
-            }
+        document.getElementById("start").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") findRoute();
+        });
+        document.getElementById("destination").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") findRoute();
         });
     </script>
-
 </body>
 </html>
