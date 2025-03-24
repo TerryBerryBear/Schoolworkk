@@ -65,8 +65,8 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.length > 0) {
-                        var lat = data[0].lat;
-                        var lon = data[0].lon;
+                        var lat = parseFloat(data[0].lat);  // Convert to float
+                        var lon = parseFloat(data[0].lon);  // Convert to float
 
                         // Move map to the searched location
                         map.setView([lat, lon], 12);
