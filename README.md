@@ -1,26 +1,48 @@
-# Schoolworkk - Leaflet.js Map Project  
+# 📍 OpenStreetMap Route Finder (with FlutterFlow & Node.js)
 
-This project hosts an **interactive map** built with **Leaflet.js** and **OpenStreetMap**, deployed using **GitHub Pages**.  
+A web-based route finder that allows users to search for addresses and find optimal routes using **OpenStreetMap**, **Leaflet.js**, and **OSRM**. Integrated with **FlutterFlow** for seamless use in mobile applications, with a **Node.js (Express) backend** for geocoding and route planning.
 
-## 🚀 Live Demo  
-🔗 [View the Live Map](https://terryberrybear.github.io/Schoolworkk/)  
+---
 
-## 📜 About  
-- This project uses **Leaflet.js** to display a dynamic map.  
-- Hosted on **GitHub Pages** for easy access.  
-- Can be embedded in **FlutterFlow's WebView widget** for mobile apps.  
+## 🌍 Demo  
+![Route Finder](screenshot.png) *(Replace with an actual screenshot or GIF)*  
 
-## 📂 Files  
-- `index.html` → The main webpage with the map.  
-- `style.css` → Styles for the webpage (if any).  
-- `script.js` → JavaScript file for handling the Leaflet map (if used).  
+🚀 **[Live Demo](https://your-live-demo-link.com)** *(If available)*  
 
-## 📖 How to Use  
-1. Open the **Live Demo** link above.  
-2. Interact with the map (zoom, drag, etc.).  
-3. If using in **FlutterFlow**, embed the URL in a **WebView widget**.  
+---
 
-## 🔧 Setup (For Developers)  
-1. Clone the repo:  
-   ```bash
-   git clone https://github.com/TerryBerryBear/Schoolworkk.git
+## 🚀 Features  
+✅ **Address Search:** Enter start and destination locations to find routes.  
+✅ **Real-Time Route Calculation:** Uses OpenStreetMap and OSRM to generate optimal routes.  
+✅ **Custom Route Colors:** Choose from multiple colors (blue, red, green, etc.).  
+✅ **Browser Geolocation:** Automatically sets the initial map view to the user's location.  
+✅ **FlutterFlow Integration:** Embedded via WebView for seamless mobile use.  
+✅ **Node.js Backend:** Handles geocoding and route planning requests.  
+✅ **Error Handling:** Alerts for invalid addresses, missing input, or failed route fetches.  
+
+---
+
+## 🛠️ Tech Stack  
+
+### **Frontend:**  
+- **HTML, CSS, JavaScript** (for web interface)  
+- **Leaflet.js** (for map rendering & route visualization)  
+- **OpenStreetMap** (for geocoding & mapping)  
+- **FlutterFlow WebView** (to embed in Flutter app)  
+
+### **Backend:**  
+- **Node.js + Express.js** (for handling geocoding & routing requests)  
+- **Render** (for backend deployment)  
+
+### **APIs Used:**  
+- **Nominatim API** – Converts addresses to latitude/longitude  
+- **OSRM API** – Calculates routes between two locations  
+
+---
+
+## 🔧 How to Run Locally  
+
+### **1️⃣ Clone the Repository**  
+```sh
+git clone https://github.com/your-username/your-repo-name.git
+cd your-repo-name
