@@ -1,16 +1,17 @@
-<!DOCTYPE ht<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenStreetMap Route Planner</title>
-
+    <title>OpenStreetMap with Leaflet</title>
+    
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
+    
     <style>
+        /* Set full-screen height */
         #map {
-            height: 500px; 
+            height: 500px;  /* Ensures map is visible */
             width: 100%;
         }
         #search-container {
@@ -20,32 +21,29 @@
         input {
             padding: 5px;
             width: 250px;
-            margin: 5px;
         }
         button {
             padding: 5px 10px;
-            margin: 5px;
+            margin-left: 5px;
         }
     </style>
 </head>
 <body>
 
+    <!-- Search Bar for Address Input -->
     <div id="search-container">
-        <input type="text" id="start" placeholder="Enter start location">
-        <button onclick="searchLocation(true)">Search Start</button>
-        <br>
-        <input type="text" id="end" placeholder="Enter destination">
-        <button onclick="searchLocation(false)">Search Destination</button>
-        <br>
-        <button onclick="calculateRoute()">Get Route</button>
+        <input type="text" id="address" placeholder="Enter an address">
+        <button onclick="searchLocation()">Search</button>
     </div>
 
+    <!-- Map Container -->
     <div id="map"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <script>
+        // Initialize the map and set its view
         var map = L.map('map').setView([51.505, -0.09], 13);
 
         // Add OpenStreetMap tiles
@@ -53,58 +51,38 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        var markerStart, markerEnd, routeLayer;
-        const ORS_API_KEY = "5b3ce3597851110001cf624830c36be712184a2ab45bf1b985a0d19d";  // Replace with your ORS API Key
+        // Add a marker
+        var marker = L.marker([51.505, -0.09]).addTo(map)
+            .bindPopup("Hello! This is a marker.")
+            .openPopup();
 
-        // Function to search for an address and place a marker
-        function searchLocation(isStart) {
-            var address = document.getElementById(isStart ? "start" : "end").value;
+        // Function to search for an address and move the map
+        function searchLocation() {
+            var address = document.getElementById("address").value;
             var url = `https://nominatim.openstreetmap.org/search?format=json&q=${address}`;
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
                     if (data.length > 0) {
-                        var lat = parseFloat(data[0].lat);
-                        var lon = parseFloat(data[0].lon);
-                        
+                        var lat = data[0].lat;
+                        var lon = data[0].lon;
+
+                        // Move map to the searched location
                         map.setView([lat, lon], 12);
 
-                        if (isStart) {
-                            if (markerStart) map.removeLayer(markerStart);
-                            markerStart = L.marker([lat, lon]).addTo(map).bindPopup("Start Location").openPopup();
-                        } else {
-                            if (markerEnd) map.removeLayer(markerEnd);
-                            markerEnd = L.marker([lat, lon]).addTo(map).bindPopup("Destination").openPopup();
-                        }
+                        // Remove old marker if exists
+                        if (marker) map.removeLayer(marker);
+
+                        // Add marker to new location
+                        marker = L.marker([lat, lon]).addTo(map)
+                            .bindPopup(data[0].display_name)
+                            .openPopup();
                     } else {
                         alert("Location not found!");
                     }
                 })
-                .catch(error => console.error("Error:", error));
-        }
-
-        // Function to calculate route
-        function calculateRoute() {
-            if (!markerStart || !markerEnd) {
-                alert("Please enter both start and destination addresses.");
-                return;
-            }
-
-            var startCoords = `${markerStart.getLatLng().lng},${markerStart.getLatLng().lat}`;
-            var endCoords = `${markerEnd.getLatLng().lng},${markerEnd.getLatLng().lat}`;
-            var routeUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${5b3ce3597851110001cf624830c36be712184a2ab45bf1b985a0d19d}&start=${startCoords}&end=${endCoords}`;
-
-            fetch(routeUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (routeLayer) map.removeLayer(routeLayer); // Remove previous route if exists
-
-                    var routeCoords = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
-                    routeLayer = L.polyline(routeCoords, { color: 'blue', weight: 5 }).addTo(map);
-                    map.fitBounds(routeLayer.getBounds());
-                })
-                .catch(error => console.error("Route calculation failed:", error));
+                .catch(error => console.log("Error:", error));
         }
     </script>
 
