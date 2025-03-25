@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Route Finder with OpenStreetMap</title>
-    
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    
+
     <style>
         #map {
             height: 500px;
@@ -17,13 +17,14 @@
             text-align: center;
             margin: 10px;
         }
-        input, select {
-            padding: 5px;
+        input, select, button {
+            padding: 8px;
             width: 200px;
             margin: 5px;
         }
-        button {
-            padding: 5px 10px;
+        #swapBtn {
+            width: 50px;
+            padding: 5px;
         }
         #loading {
             display: none;
@@ -34,11 +35,12 @@
     </style>
 </head>
 <body>
+
     <div id="search-container">
         <input type="text" id="start" placeholder="Enter start location">
+        <button id="swapBtn">🔄</button>
         <input type="text" id="destination" placeholder="Enter destination">
         
-        <!-- Color Selection Dropdown -->
         <select id="routeColor">
             <option value="blue">Blue</option>
             <option value="red">Red</option>
@@ -49,116 +51,146 @@
             <option value="pink">Pink</option>
         </select>
 
-        <button onclick="findRoute()">Find Route</button>
+        <button id="findRouteBtn" onclick="findRoute()">Find Route</button>
         <div id="loading">🔄 Searching...</div>
     </div>
+
     <div id="map"></div>
-    
+    <p id="distanceDisplay" style="text-align:center; font-size:18px; font-weight:bold;"></p>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    
+
     <script>
-        var map = L.map('map');
+        var map = L.map('map').setView([51.505, -0.09], 5);
+        var startMarker = null, endMarker = null, routeLayer = null;
 
-        // Try to set map to user's location
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    var userLat = position.coords.latitude;
-                    var userLon = position.coords.longitude;
-                    map.setView([userLat, userLon], 13);
-                },
-                function() {
-                    // Fallback zoomed-out view
-                    map.setView([51.505, -0.09], 5);
-                }
-            );
-        } else {
-            map.setView([51.505, -0.09], 5);
-        }
-
+        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
-
-        var startMarker, endMarker, routeLayer;
 
         function findRoute() {
             var startAddress = document.getElementById("start").value.trim();
             var endAddress = document.getElementById("destination").value.trim();
             var routeColor = document.getElementById("routeColor").value;
             var loadingIndicator = document.getElementById("loading");
+            var distanceDisplay = document.getElementById("distanceDisplay");
+            var findRouteBtn = document.getElementById("findRouteBtn");
 
             if (!startAddress || !endAddress) {
                 alert("Please enter both start and destination addresses.");
                 return;
             }
 
+            // Show loading and disable button
             loadingIndicator.style.display = "block";
+            findRouteBtn.disabled = true;
 
             Promise.all([
                 fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startAddress)}`).then(res => res.json()),
                 fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endAddress)}`).then(res => res.json())
             ])
             .then(([startData, endData]) => {
-                loadingIndicator.style.display = "none";
-
-                if (startData.length > 0 && endData.length > 0) {
-                    var startLat = parseFloat(startData[0].lat);
-                    var startLon = parseFloat(startData[0].lon);
-                    var endLat = parseFloat(endData[0].lat);
-                    var endLon = parseFloat(endData[0].lon);
-
-                    // Clear old markers and routes
-                    if (startMarker) map.removeLayer(startMarker);
-                    if (endMarker) map.removeLayer(endMarker);
-                    if (routeLayer) map.removeLayer(routeLayer);
-                    routeLayer = null;
-
-                    startMarker = L.marker([startLat, startLon]).addTo(map)
-                        .bindPopup("Start: " + startData[0].display_name)
-                        .openPopup();
-
-                    endMarker = L.marker([endLat, endLon]).addTo(map)
-                        .bindPopup("Destination: " + endData[0].display_name)
-                        .openPopup();
-
-                    map.fitBounds([
-                        [startLat, startLon],
-                        [endLat, endLon]
-                    ]);
-
-                    var routeUrl = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
-
-                    return fetch(routeUrl);
-                } else {
-                    alert("One or both locations not found!");
+                if (startData.length === 0 || endData.length === 0) {
+                    loadingIndicator.style.display = "none";
+                    findRouteBtn.disabled = false;
+                    alert(`Location not found: ${startData.length === 0 ? startAddress : endAddress}`);
                     throw new Error("Invalid locations");
                 }
+
+                var startLat = parseFloat(startData[0].lat);
+                var startLon = parseFloat(startData[0].lon);
+                var endLat = parseFloat(endData[0].lat);
+                var endLon = parseFloat(endData[0].lon);
+
+                // Remove existing markers and route
+                if (startMarker) map.removeLayer(startMarker);
+                if (endMarker) map.removeLayer(endMarker);
+                if (routeLayer) map.removeLayer(routeLayer);
+
+                startMarker = L.marker([startLat, startLon]).addTo(map)
+                    .bindPopup("Start: " + startData[0].display_name)
+                    .openPopup();
+
+                endMarker = L.marker([endLat, endLon]).addTo(map)
+                    .bindPopup("Destination: " + endData[0].display_name)
+                    .openPopup();
+
+                map.fitBounds([
+                    [startLat, startLon],
+                    [endLat, endLon]
+                ]);
+
+                var routeUrl = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+
+                return fetch(routeUrl);
             })
             .then(response => response.json())
             .then(routeData => {
+                loadingIndicator.style.display = "none";
+                findRouteBtn.disabled = false;
+
                 if (routeData.routes && routeData.routes.length > 0) {
                     var routeCoordinates = routeData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
-                    if (routeLayer) map.removeLayer(routeLayer);
+                    var routeDistanceMeters = routeData.routes[0].distance;
+                    var routeDistanceMiles = (routeDistanceMeters / 1609.34).toFixed(2);
+
                     routeLayer = L.polyline(routeCoordinates, { color: routeColor, weight: 4 }).addTo(map);
+                    distanceDisplay.textContent = `Distance: ${routeDistanceMiles} miles`;
                 } else {
                     alert("No route found between locations.");
+                    distanceDisplay.textContent = "";
                 }
             })
             .catch(error => {
                 loadingIndicator.style.display = "none";
-                alert("An error occurred while fetching the route. Please try again.");
+                findRouteBtn.disabled = false;
                 console.error("Error:", error);
+                alert("An error occurred while fetching the route. Please try again.");
             });
         }
 
-        document.getElementById("start").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") findRoute();
+        // Swap start and destination fields
+        document.getElementById("swapBtn").addEventListener("click", function() {
+            var startInput = document.getElementById("start");
+            var endInput = document.getElementById("destination");
+            var temp = startInput.value;
+            startInput.value = endInput.value;
+            endInput.value = temp;
         });
-        document.getElementById("destination").addEventListener("keypress", function(event) {
-            if (event.key === "Enter") findRoute();
+
+        // Enable Enter key to trigger search
+        ["start", "destination"].forEach(id => {
+            document.getElementById(id).addEventListener("keypress", function(event) {
+                if (event.key === "Enter") findRoute();
+            });
         });
+
+        // Set map to user's location if available
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var userLat = position.coords.latitude;
+                    var userLon = position.coords.longitude;
+                    map.setView([userLat, userLon], 13);
+
+                    // Reverse geocode to get city name (optional)
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLon}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.address && data.address.city) {
+                                document.getElementById("start").value = data.address.city;
+                            }
+                        })
+                        .catch(err => console.error("Reverse geocoding failed", err));
+                },
+                function() {
+                    console.warn("Geolocation failed. Using default location.");
+                }
+            );
+        }
     </script>
+
 </body>
 </html>
